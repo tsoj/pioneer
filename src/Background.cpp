@@ -230,7 +230,9 @@ namespace Background {
 	{
 		PROFILE_SCOPED()
 		const Uint32 NUM_BG_STARS = MathUtil::mix(BG_STAR_MIN, BG_STAR_MAX, Pi::GetAmountBackgroundStars());
-		const float brightnessApparentSizeFactor = Pi::GetStarFieldStarSizeFactor() / 3.5;
+		const float brightnessApparentSizeFactor = Pi::GetStarFieldStarSizeFactor() / 7.0;
+		// dividing by 7 to make sure that 100% star size isn't too big to clash with UI elements
+
 		m_hyperVtx.reset(new vector3f[BG_STAR_MAX * 3]);
 		m_hyperCol.reset(new Color[BG_STAR_MAX * 3]);
 
@@ -264,12 +266,10 @@ namespace Background {
 			constexpr float starsPerSector = 2.0; /* experimentally determined (already ajusted for that we are
 			searching through a square of sectors and not a sphere)*/
 			// TODO: how robust is this value against changes in the underlying sector code?
-			const float approxNumSectors = NUM_BG_STARS/starsPerSector;
-			const Sint32 visibleRadius = pow(
-					3*approxNumSectors*pow(Sector::SIZE, 3)/(4.0*M_PI), 
-					1.0/3.0) * 0.98; /* multiplying with 0.98 to make sure that we don't stop early because we
-					exceeded the NUM_BG_STARS limit*/
-			
+			const float approxNumSectors = NUM_BG_STARS / starsPerSector;
+			const Sint32 visibleRadius = 0.98 * pow(3 * approxNumSectors * pow(Sector::SIZE, 3) / (4.0 * M_PI), 1.0 / 3.0);
+			// multiplying with 0.98 to make sure that we don't stop early because we exceeded the NUM_BG_STARS limit
+
 			const Sint32 visibleRadiusSqr = (visibleRadius * visibleRadius);
 			const Sint32 sectorMin = -(visibleRadius / Sector::SIZE); // lyrs_radius / sector_size_in_lyrs
 			const Sint32 sectorMax = visibleRadius / Sector::SIZE;	  // lyrs_radius / sector_size_in_lyrs
@@ -327,8 +327,6 @@ namespace Background {
 					}
 		}
 		Output("Stars picked from galaxy: %d\n", num);
-
-		// TODO: fix weird hyperspace animation
 
 		// use a logarithmic scala for brightness since this looks more natural to the human eye
 		for (uint32_t i = 0; i < num; ++i) {

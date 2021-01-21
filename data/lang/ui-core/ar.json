@@ -1865,11 +1865,7 @@
   },
   "STAR_FIELD_DENSITY": {
     "description": "",
-    "message": "Density of star field"
-  },
-  "STAR_FIELD_STAR_SIZE_FACTOR": {
-    "description": "",
-    "message": "Size of stars in star field"
+    "message": "Density of Star field"
   },
   "STATION": {
     "description": "Flight log info, will refer to a station by name",
