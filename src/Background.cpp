@@ -27,7 +27,7 @@ using namespace Graphics;
 
 namespace {
 	static const Uint32 BG_STAR_MAX = 500000;
-	static const Uint32 BG_STAR_MIN = 50000;
+	static const Uint32 BG_STAR_MIN = 1;
 	static const float BG_STAR_RADIUS_MIN = 8.0f;
 	static const float BG_STAR_RADIUS_MAX = 500.0f;
 	static RefCountedPtr<Graphics::Texture> s_defaultCubeMap;
@@ -89,7 +89,7 @@ namespace Background {
 	{
 		// Load default cubemap
 		if (!s_defaultCubeMap.Valid()) {
-			TextureBuilder texture_builder = TextureBuilder::Cube("textures/skybox/default.dds");
+			TextureBuilder texture_builder = TextureBuilder::Cube("textures/skybox/skyboxNoStars.dds");
 			s_defaultCubeMap.Reset(texture_builder.GetOrCreateTexture(m_renderer, std::string("cube")));
 		}
 

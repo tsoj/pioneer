@@ -552,7 +552,7 @@ static int l_engine_set_display_hud_trails(lua_State *l)
 
 static int l_engine_set_amount_stars(lua_State *l)
 {
-	const float amount = Clamp(luaL_checknumber(l, 1), 0.01, 1.0);
+	const float amount = Clamp(luaL_checknumber(l, 1), 0.0, 1.0);
 	Pi::config->SetFloat("AmountOfBackgroundStars", amount);
 	Pi::config->Save();
 	Pi::SetAmountBackgroundStars(amount);
@@ -567,7 +567,7 @@ static int l_engine_get_amount_stars(lua_State *l)
 
 static int l_engine_set_star_field_star_size_factor(lua_State *l)
 {
-	const float amount = Clamp(luaL_checknumber(l, 1), 0.01, 1.0);
+	const float amount = Clamp(luaL_checknumber(l, 1), 0.0, 1.0);
 	Pi::config->SetFloat("StarFieldStarSizeFactor", amount);
 	Pi::config->Save();
 	Pi::SetStarFieldStarSizeFactor(amount);
