@@ -253,6 +253,7 @@ void Space::RebuildBodyIndex()
 	}
 
 	Pi::SetAmountBackgroundStars(Pi::GetAmountBackgroundStars());
+	Pi::SetStarFieldStarSizeFactor(Pi::GetStarFieldStarSizeFactor());
 
 	m_bodyIndexValid = true;
 }

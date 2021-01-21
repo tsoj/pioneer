@@ -210,6 +210,7 @@ local function showVideoOptions()
 	local enableCockpit = Engine.GetCockpitEnabled()
 	local enableAutoSave = Engine.GetAutosaveEnabled()
 	local starDensity = Engine.GetAmountStars() * 100
+	local starFieldStarSizeFactor = Engine.GetStarFieldStarSizeFactor() * 100
 
 	local c
 	ui.text(lui.VIDEO_CONFIGURATION_RESTART_GAME_TO_APPLY)
@@ -300,6 +301,11 @@ local function showVideoOptions()
 	c,starDensity = slider(lui.STAR_FIELD_DENSITY, starDensity, 0, 100)
 	if c then
 		Engine.SetAmountStars(starDensity/100)
+	end
+
+	c,starFieldStarSizeFactor = slider(lui.STAR_FIELD_STAR_SIZE_FACTOR, starFieldStarSizeFactor, 0, 100)
+	if c then
+	        Engine.SetStarFieldStarSizeFactor(starFieldStarSizeFactor/100)
 	end
 
 	ui.separator()

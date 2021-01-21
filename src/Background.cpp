@@ -224,19 +224,13 @@ namespace Background {
 		m_gMax = Clamp(cfg.Float("gMax", 1.0), 0.2f, 1.0f);
 		m_bMin = Clamp(cfg.Float("bMin", 0.6), 0.2f, 1.0f);
 		m_bMax = Clamp(cfg.Float("bMax", 1.0), 0.2f, 1.0f);
-		m_visibleRadiusLy = std::max(cfg.Float("visibleRadiusLy", 180.0f), 0.0f);
-		m_medianPosition = Clamp(cfg.Float("medianPosition", 0.7f), 0.0f, 1.0f);
-		m_brightnessPower = cfg.Float("brightnessPower", 2.1f);
-		m_brightnessApparentSizeFactor = std::max(cfg.Float("brightnessApparentSizeFactor", 0.8f), 0.0f);
-		m_brightnessApparentSizeOffset = cfg.Float("brightnessApparentSizeOffset", 0.0);
-		m_brightnessColorFactor = cfg.Float("brightnessColorFactor", 0.8);
-		m_brightnessColorOffset = cfg.Float("brightnessColorOffset", 0.1);
 	}
 
 	void Starfield::Fill(Random &rand, const Space *space, RefCountedPtr<Galaxy> galaxy)
 	{
 		PROFILE_SCOPED()
 		const Uint32 NUM_BG_STARS = MathUtil::mix(BG_STAR_MIN, BG_STAR_MAX, Pi::GetAmountBackgroundStars());
+		const float brightnessApparentSizeFactor = Pi::GetStarFieldStarSizeFactor() / 3.5;
 		m_hyperVtx.reset(new vector3f[BG_STAR_MAX * 3]);
 		m_hyperCol.reset(new Color[BG_STAR_MAX * 3]);
 
@@ -264,14 +258,27 @@ namespace Background {
 		if (space != nullptr && galaxy.Valid() && space->GetStarSystem() != nullptr) {
 			const SystemPath current = space->GetStarSystem()->GetPath();
 
-			const double size = 1.0;
-			const Sint32 visibleRadius = MathUtil::mix(BG_STAR_RADIUS_MIN, Clamp(m_visibleRadiusLy, BG_STAR_RADIUS_MIN, BG_STAR_RADIUS_MAX), Pi::GetAmountBackgroundStars()); // lyrs
+			constexpr float starsPerSector = 2.0; /* experimentally determined (already ajusted for that we are
+			searching through a square of sectors and not a sphere)*/
+			const float approxNumSectors = NUM_BG_STARS/starsPerSector;
+			const Sint32 visibleRadius = pow(
+					3*approxNumSectors*pow(Sector::SIZE, 3)/(4.0*M_PI), 
+					1.0/3.0) * 0.98; /* multiplying with 0.98 to make sure that we don't stop early because we
+					exceeded the NUM_BG_STARS limit*/
+			Output("Stars picked goal: %d\n", NUM_BG_STARS);
+			Output("Visibe radius: %i\n LY", visibleRadius);
+
+			/*const Sint32 visibleRadius = MathUtil::mix(
+				BG_STAR_RADIUS_MIN,
+				Clamp(visibleRadiusLy, BG_STAR_RADIUS_MIN, BG_STAR_RADIUS_MAX),
+				Pi::GetAmountBackgroundStars());*/ // lyrs
 			const Sint32 visibleRadiusSqr = (visibleRadius * visibleRadius);
 			const Sint32 sectorMin = -(visibleRadius / Sector::SIZE); // lyrs_radius / sector_size_in_lyrs
 			const Sint32 sectorMax = visibleRadius / Sector::SIZE;	  // lyrs_radius / sector_size_in_lyrs
-			for (Sint32 x = sectorMin; x < sectorMax; x++) {
-				for (Sint32 y = sectorMin; y < sectorMax; y++) {
-					for (Sint32 z = sectorMin; z < sectorMax; z++) {
+
+			for (Sint32 x = sectorMin; x <= sectorMax; ++x)
+				for (Sint32 y = sectorMin; y <= sectorMax; ++y)
+					for (Sint32 z = sectorMin; z <= sectorMax; ++z) {
 						SystemPath sys(current.sectorX + x, current.sectorY + y, current.sectorZ + z);
 						if (SystemPath::SectorDistanceSqr(sys, current) * Sector::SIZE >= visibleRadiusSqr)
 							continue; // early out
@@ -304,7 +311,6 @@ namespace Background {
 							//const Color col(Color::PINK); // debug pink
 
 							// copy the data
-							sizes[num] = size;
 							stars[num] = distance.Normalized() * 1000.0f;
 							colors[num] = col;
 							brightness[num] = luminositySystemSum / (4 * M_PI * distance.Length() * distance.Length());
@@ -321,8 +327,6 @@ namespace Background {
 							break;
 						}
 					}
-				}
-			}
 		}
 		Output("Stars picked from galaxy: %d\n", num);
 		// use a logarithmic scala for brightness since this looks more natural to the human eye
@@ -339,8 +343,9 @@ namespace Background {
 			return brightness[a] > brightness[b];
 		});
 		double medianBrightness = 0.0;
+		constexpr float medianPosition = 0.7;
 		if (num > 0) {
-			medianBrightness = brightness[sortedBrightnessIndex[Clamp<int>(m_medianPosition * num, 0, num - 1)]];
+			medianBrightness = brightness[sortedBrightnessIndex[Clamp<int>(medianPosition * num, 0, num - 1)]];
 		}
 
 		for (size_t j = 0; j < num; ++j) {
@@ -349,11 +354,11 @@ namespace Background {
 			// dividing through the median helps bringing the logarithmic brightnesses to a scala that is easier to work with
 			brightness[i] /= medianBrightness;
 			// the exponentiation helps to emphasize very bright stars
-			brightness[i] = std::pow(Clamp(brightness[i], 0.0f, 4.0f), m_brightnessPower);
+			constexpr float brightnessPower = 7.5;
+			brightness[i] = std::pow(brightness[i], brightnessPower);
 
-			sizes[i] = std::max(m_brightnessApparentSizeFactor * (brightness[i] + m_brightnessApparentSizeOffset), 0.0f);
+			sizes[i] = std::max(brightnessApparentSizeFactor * brightness[i], 0.0f);
 
-			float colorFactor = std::max(m_brightnessColorFactor * (brightness[i] + m_brightnessColorOffset), 0.0f);
 			// convert temporarily to floats to prevent narrowing errors
 			float colorR = colors[i].r;
 			float colorG = colors[i].g;
@@ -361,8 +366,8 @@ namespace Background {
 
 			// find a color scaling factor that doesn't make a colored star look white
 			float colorMax = std::max({ colorR, colorG, colorB });
-			float scaledColorMax = colorMax * colorFactor;
-			colorFactor = std::min(scaledColorMax, 255.0f) / colorMax;
+			float scaledColorMax = colorMax * brightness[i];
+			const float colorFactor = std::min(scaledColorMax, 255.0f) / colorMax;
 
 			colorR *= colorFactor;
 			colorG *= colorFactor;
