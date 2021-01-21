@@ -29,7 +29,7 @@ namespace {
 	constexpr Uint32 BG_STAR_MAX = 500000;
 	constexpr Uint32 BG_STAR_MIN = 1;
 	constexpr Sint32 BG_STAR_RADIUS_MAX = 500;
-	constexpr Uint32 NUM_HYPERSPACE_STARS = 4000;
+	constexpr Uint32 NUM_HYPERSPACE_STARS = 8000;
 	static RefCountedPtr<Graphics::Texture> s_defaultCubeMap;
 
 	static Uint32 GetNumSkyboxes()
@@ -373,7 +373,7 @@ namespace Background {
 		}
 
 		// fill out the remaining target count with generated points and also fill hyperspace stars
-		for (Uint32 i = 0; i < NUM_BG_STARS; i++) {
+		for (Uint32 i = 0; i < std::max(NUM_BG_STARS, NUM_HYPERSPACE_STARS); i++) {
 			const double size = rand.Double(0.2, 0.9);
 			const Uint8 colScale = size * 255;
 
@@ -390,14 +390,14 @@ namespace Background {
 			// squeeze the starfield a bit to get more density near horizon using matrix3x3f::Scale
 			const auto star = matrix3x3f::Scale(1.0, 0.4, 1.0) * (vector3f(sqrt(1.0f - u * u) * cos(theta), u, sqrt(1.0f - u * u) * sin(theta)).Normalized() * 1000.0f);
 
-			if (i >= num) {
+			if (i >= num && i < NUM_BG_STARS) {
 				sizes[i] = size;
 				stars[i] = star;
 				colors[i] = col;
 				num++;
 			}
 			if (i < NUM_HYPERSPACE_STARS) {
-				m_hyperVtx[NUM_HYPERSPACE_STARS * 2 + i] = stars[i];
+				m_hyperVtx[NUM_HYPERSPACE_STARS * 2 + i] = star;
 				m_hyperCol[NUM_HYPERSPACE_STARS * 2 + i] = Color::WHITE * 0.8;
 			}
 		}
@@ -426,7 +426,7 @@ namespace Background {
 			// roughly, the multiplier gets smaller as the duration gets larger.
 			// the time-looking bits in this are completely arbitrary - I figured
 			// it out by tweaking the numbers until it looked sort of right
-			const double mult = 0.0015 / (Pi::player->GetHyperspaceDuration() / (60.0 * 60.0 * 24.0 * 7.0));
+			const double mult = 0.001 / (Pi::player->GetHyperspaceDuration() / (60.0 * 60.0 * 24.0 * 7.0));
 
 			const double hyperspaceProgress = Pi::game->GetHyperspaceProgress();
 
