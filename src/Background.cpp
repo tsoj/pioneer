@@ -253,6 +253,9 @@ namespace Background {
 		std::unique_ptr<Color[]> colors(new Color[NUM_BG_STARS]);
 		std::unique_ptr<float[]> sizes(new float[NUM_BG_STARS]);
 		std::unique_ptr<float[]> brightness(new float[NUM_BG_STARS]);
+
+		// TODO: find a nicer solution for main menu
+
 		//fill the array
 		Uint32 num = 0;
 		if (space != nullptr && galaxy.Valid() && space->GetStarSystem() != nullptr) {
@@ -341,7 +344,7 @@ namespace Background {
 			return brightness[a] > brightness[b];
 		});
 		double medianBrightness = 0.0;
-		constexpr float medianPosition = 0.7; // TODO: maybe make this a config parameter
+		constexpr float medianPosition = 0.7; // TODO: maybe make this a config parameter (but which config?)
 		if (num > 0) {
 			medianBrightness = brightness[sortedBrightnessIndex[Clamp<int>(medianPosition * num, 0, num - 1)]];
 		}
