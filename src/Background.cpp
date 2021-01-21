@@ -260,18 +260,13 @@ namespace Background {
 
 			constexpr float starsPerSector = 2.0; /* experimentally determined (already ajusted for that we are
 			searching through a square of sectors and not a sphere)*/
+			// TODO: how robust is this value against changes in the underlying sector code?
 			const float approxNumSectors = NUM_BG_STARS/starsPerSector;
 			const Sint32 visibleRadius = pow(
 					3*approxNumSectors*pow(Sector::SIZE, 3)/(4.0*M_PI), 
 					1.0/3.0) * 0.98; /* multiplying with 0.98 to make sure that we don't stop early because we
 					exceeded the NUM_BG_STARS limit*/
-			Output("Stars picked goal: %d\n", NUM_BG_STARS);
-			Output("Visibe radius: %i\n LY", visibleRadius);
-
-			/*const Sint32 visibleRadius = MathUtil::mix(
-				BG_STAR_RADIUS_MIN,
-				Clamp(visibleRadiusLy, BG_STAR_RADIUS_MIN, BG_STAR_RADIUS_MAX),
-				Pi::GetAmountBackgroundStars());*/ // lyrs
+			
 			const Sint32 visibleRadiusSqr = (visibleRadius * visibleRadius);
 			const Sint32 sectorMin = -(visibleRadius / Sector::SIZE); // lyrs_radius / sector_size_in_lyrs
 			const Sint32 sectorMax = visibleRadius / Sector::SIZE;	  // lyrs_radius / sector_size_in_lyrs
@@ -329,6 +324,9 @@ namespace Background {
 					}
 		}
 		Output("Stars picked from galaxy: %d\n", num);
+
+		// TODO: fix weird hyperspace animation
+
 		// use a logarithmic scala for brightness since this looks more natural to the human eye
 		for (uint32_t i = 0; i < num; ++i) {
 			brightness[i] = log(brightness[i]);
@@ -343,7 +341,7 @@ namespace Background {
 			return brightness[a] > brightness[b];
 		});
 		double medianBrightness = 0.0;
-		constexpr float medianPosition = 0.7;
+		constexpr float medianPosition = 0.7; // TODO: maybe make this a config parameter
 		if (num > 0) {
 			medianBrightness = brightness[sortedBrightnessIndex[Clamp<int>(medianPosition * num, 0, num - 1)]];
 		}
@@ -354,7 +352,7 @@ namespace Background {
 			// dividing through the median helps bringing the logarithmic brightnesses to a scala that is easier to work with
 			brightness[i] /= medianBrightness;
 			// the exponentiation helps to emphasize very bright stars
-			constexpr float brightnessPower = 7.5;
+			constexpr float brightnessPower = 7.5; // TODO: maybe make this a config parameter
 			brightness[i] = std::pow(brightness[i], brightnessPower);
 
 			sizes[i] = std::max(brightnessApparentSizeFactor * brightness[i], 0.0f);
