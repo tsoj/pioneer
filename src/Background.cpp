@@ -26,10 +26,10 @@
 using namespace Graphics;
 
 namespace {
-	static const Uint32 BG_STAR_MAX = 500000;
-	static const Uint32 BG_STAR_MIN = 1;
-	static const float BG_STAR_RADIUS_MIN = 8.0f;
-	static const float BG_STAR_RADIUS_MAX = 500.0f;
+	constexpr Uint32 BG_STAR_MAX = 500000;
+	constexpr Uint32 BG_STAR_MIN = 1;
+	constexpr Sint32 BG_STAR_RADIUS_MAX = 500;
+	constexpr Uint32 NUM_HYPERSPACE_STARS = 4000;
 	static RefCountedPtr<Graphics::Texture> s_defaultCubeMap;
 
 	static Uint32 GetNumSkyboxes()
@@ -233,10 +233,8 @@ namespace Background {
 		const float brightnessApparentSizeFactor = Pi::GetStarFieldStarSizeFactor() / 7.0;
 		// dividing by 7 to make sure that 100% star size isn't too big to clash with UI elements
 
-		m_hyperVtx.reset(new vector3f[BG_STAR_MAX * 3]);
-		m_hyperCol.reset(new Color[BG_STAR_MAX * 3]);
-
-		// setup the animated stars buffer (streaks in Hyperspace)
+		m_hyperVtx.reset(new vector3f[NUM_HYPERSPACE_STARS * 3]);
+		m_hyperCol.reset(new Color[NUM_HYPERSPACE_STARS * 3]);
 		{
 			Graphics::VertexBufferDesc vbd;
 			vbd.attrib[0].semantic = Graphics::ATTRIB_POSITION;
@@ -244,7 +242,7 @@ namespace Background {
 			vbd.attrib[1].semantic = Graphics::ATTRIB_DIFFUSE;
 			vbd.attrib[1].format = Graphics::ATTRIB_FORMAT_UBYTE4;
 			vbd.usage = Graphics::BUFFER_USAGE_DYNAMIC;
-			vbd.numVertices = NUM_BG_STARS * 2;
+			vbd.numVertices = NUM_HYPERSPACE_STARS * 2;
 			m_animBuffer.reset(m_renderer->CreateVertexBuffer(vbd));
 		}
 
@@ -267,13 +265,14 @@ namespace Background {
 			searching through a square of sectors and not a sphere)*/
 			// TODO: how robust is this value against changes in the underlying sector code?
 			const float approxNumSectors = NUM_BG_STARS / starsPerSector;
-			const Sint32 visibleRadius = 0.98 * pow(3 * approxNumSectors * pow(Sector::SIZE, 3) / (4.0 * M_PI), 1.0 / 3.0);
+			const Sint32 visibleRadius = std::min<Sint32>(BG_STAR_RADIUS_MAX, 0.98 * pow(3 * approxNumSectors * pow(Sector::SIZE, 3) / (4.0 * M_PI), 1.0 / 3.0));
 			// multiplying with 0.98 to make sure that we don't stop early because we exceeded the NUM_BG_STARS limit
 
 			const Sint32 visibleRadiusSqr = (visibleRadius * visibleRadius);
 			const Sint32 sectorMin = -(visibleRadius / Sector::SIZE); // lyrs_radius / sector_size_in_lyrs
 			const Sint32 sectorMax = visibleRadius / Sector::SIZE;	  // lyrs_radius / sector_size_in_lyrs
 
+			// fill star array
 			for (Sint32 x = sectorMin; x <= sectorMax; ++x)
 				for (Sint32 y = sectorMin; y <= sectorMax; ++y)
 					for (Sint32 z = sectorMin; z <= sectorMax; ++z) {
@@ -313,9 +312,6 @@ namespace Background {
 							colors[num] = col;
 							brightness[num] = luminositySystemSum / (4 * M_PI * distance.Length() * distance.Length());
 
-							//need to keep data around for HS anim - this is stupid
-							m_hyperVtx[NUM_BG_STARS * 2 + num] = stars[num];
-							m_hyperCol[NUM_BG_STARS * 2 + num] = col * 0.8f;
 							num++;
 						}
 						if (num >= NUM_BG_STARS) {
@@ -376,32 +372,33 @@ namespace Background {
 			colors[i].b = Clamp<int>(colorB, 0, 255);
 		}
 
-		// fill out the remaining target count with generated points
-		if (num < NUM_BG_STARS) {
-			for (Uint32 i = num; i < NUM_BG_STARS; i++) {
-				const double size = rand.Double(0.2, 0.9);
-				const Uint8 colScale = size * 255;
+		// fill out the remaining target count with generated points and also fill hyperspace stars
+		for (Uint32 i = 0; i < NUM_BG_STARS; i++) {
+			const double size = rand.Double(0.2, 0.9);
+			const Uint8 colScale = size * 255;
 
-				const Color col(
-					rand.Double(m_rMin, m_rMax) * colScale,
-					rand.Double(m_gMin, m_gMax) * colScale,
-					rand.Double(m_bMin, m_bMax) * colScale,
-					255);
+			const Color col(
+				rand.Double(m_rMin, m_rMax) * colScale,
+				rand.Double(m_gMin, m_gMax) * colScale,
+				rand.Double(m_bMin, m_bMax) * colScale,
+				255);
 
-				// this is proper random distribution on a sphere's surface
-				const float theta = float(rand.Double(0.0, 2.0 * M_PI));
-				const float u = float(rand.Double(-1.0, 1.0));
+			// this is proper random distribution on a sphere's surface
+			const float theta = float(rand.Double(0.0, 2.0 * M_PI));
+			const float u = float(rand.Double(-1.0, 1.0));
 
+			// squeeze the starfield a bit to get more density near horizon using matrix3x3f::Scale
+			const auto star = matrix3x3f::Scale(1.0, 0.4, 1.0) * (vector3f(sqrt(1.0f - u * u) * cos(theta), u, sqrt(1.0f - u * u) * sin(theta)).Normalized() * 1000.0f);
+
+			if (i >= num) {
 				sizes[i] = size;
-				// squeeze the starfield a bit to get more density near horizon using matrix3x3f::Scale
-				stars[i] = matrix3x3f::Scale(1.0, 0.4, 1.0) * (vector3f(sqrt(1.0f - u * u) * cos(theta), u, sqrt(1.0f - u * u) * sin(theta)).Normalized() * 1000.0f);
+				stars[i] = star;
 				colors[i] = col;
-
-				//need to keep data around for HS anim - this is stupid
-				m_hyperVtx[NUM_BG_STARS * 2 + i] = stars[i];
-				m_hyperCol[NUM_BG_STARS * 2 + i] = col;
-
 				num++;
+			}
+			if (i < NUM_HYPERSPACE_STARS) {
+				m_hyperVtx[NUM_HYPERSPACE_STARS * 2 + i] = stars[i];
+				m_hyperCol[NUM_HYPERSPACE_STARS * 2 + i] = Color::WHITE * 0.8;
 			}
 		}
 		Output("Final stars number: %d\n", num);
@@ -421,6 +418,7 @@ namespace Background {
 		if (!Pi::game || Pi::player->GetFlightState() != Ship::HYPERSPACE) {
 			m_pointSprites->Draw(m_renderer, m_renderState);
 		} else {
+
 			assert(sizeof(StarVert) == 16);
 			assert(m_animBuffer->GetDesc().stride == sizeof(StarVert));
 			auto vtxPtr = m_animBuffer->Map<StarVert>(Graphics::BUFFER_MAP_WRITE);
@@ -432,14 +430,14 @@ namespace Background {
 
 			const double hyperspaceProgress = Pi::game->GetHyperspaceProgress();
 
-			const Sint32 NUM_STARS = m_animBuffer->GetDesc().numVertices / 2;
+			const Sint32 numStars = m_animBuffer->GetDesc().numVertices / 2;
 
 			const vector3d pz = Pi::player->GetOrient().VectorZ(); //back vector
-			for (int i = 0; i < NUM_STARS; i++) {
-				vector3f v = m_hyperVtx[NUM_STARS * 2 + i] + vector3f(pz * hyperspaceProgress * mult);
-				const Color &c = m_hyperCol[NUM_STARS * 2 + i];
+			for (int i = 0; i < numStars; i++) {
+				vector3f v = m_hyperVtx[numStars * 2 + i] + vector3f(pz * hyperspaceProgress * mult);
+				const Color &c = m_hyperCol[numStars * 2 + i];
 
-				vtxPtr[i * 2].pos = m_hyperVtx[i * 2] = m_hyperVtx[NUM_STARS * 2 + i] + v;
+				vtxPtr[i * 2].pos = m_hyperVtx[i * 2] = m_hyperVtx[numStars * 2 + i] + v;
 				vtxPtr[i * 2].col = m_hyperCol[i * 2] = c;
 
 				vtxPtr[i * 2 + 1].pos = m_hyperVtx[i * 2 + 1] = v;
