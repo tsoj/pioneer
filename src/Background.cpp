@@ -192,11 +192,11 @@ namespace Background {
 		}
 	}
 
-	Starfield::Starfield(Graphics::Renderer *renderer, Random &rand, const Space *space, RefCountedPtr<Galaxy> galaxy)
+	Starfield::Starfield(Graphics::Renderer *renderer, Random &rand, const SystemPath *const systemPath, RefCountedPtr<Galaxy> galaxy)
 	{
 		m_renderer = renderer;
 		Init();
-		Fill(rand, space, galaxy);
+		Fill(rand, systemPath, galaxy);
 	}
 
 	void Starfield::Init()
@@ -226,7 +226,7 @@ namespace Background {
 		m_bMax = Clamp(cfg.Float("bMax", 1.0), 0.2f, 1.0f);
 	}
 
-	void Starfield::Fill(Random &rand, const Space *space, RefCountedPtr<Galaxy> galaxy)
+	void Starfield::Fill(Random &rand, const SystemPath *const systemPath, RefCountedPtr<Galaxy> galaxy)
 	{
 		PROFILE_SCOPED()
 		const Uint32 NUM_BG_STARS = MathUtil::mix(BG_STAR_MIN, BG_STAR_MAX, Pi::GetAmountBackgroundStars());
@@ -254,12 +254,9 @@ namespace Background {
 		std::unique_ptr<float[]> sizes(new float[NUM_BG_STARS]);
 		std::unique_ptr<float[]> brightness(new float[NUM_BG_STARS]);
 
-		// TODO: find a nicer solution for main menu
-
 		//fill the array
 		Uint32 num = 0;
-		if (space != nullptr && galaxy.Valid() && space->GetStarSystem() != nullptr) {
-			const SystemPath current = space->GetStarSystem()->GetPath();
+		if (systemPath && galaxy.Valid()) {
 
 			constexpr float starsPerSector = 2.0; /* experimentally determined (already ajusted for that we are
 			searching through a square of sectors and not a sphere)*/
@@ -276,8 +273,8 @@ namespace Background {
 			for (Sint32 x = sectorMin; x <= sectorMax; ++x)
 				for (Sint32 y = sectorMin; y <= sectorMax; ++y)
 					for (Sint32 z = sectorMin; z <= sectorMax; ++z) {
-						SystemPath sys(current.sectorX + x, current.sectorY + y, current.sectorZ + z);
-						if (SystemPath::SectorDistanceSqr(sys, current) * Sector::SIZE >= visibleRadiusSqr)
+						SystemPath sys(systemPath->sectorX + x, systemPath->sectorY + y, systemPath->sectorZ + z);
+						if (SystemPath::SectorDistanceSqr(sys, *systemPath) * Sector::SIZE >= visibleRadiusSqr)
 							continue; // early out
 
 						// this is fairly expensive
@@ -287,7 +284,7 @@ namespace Background {
 						const size_t numSystems = std::min(sec->m_systems.size(), (size_t)(NUM_BG_STARS - num));
 						for (size_t systemIndex = 0; systemIndex < numSystems; systemIndex++) {
 							const Sector::System *ss = &(sec->m_systems[systemIndex]);
-							const vector3f distance = Sector::SIZE * vector3f(current.sectorX, current.sectorY, current.sectorZ) - ss->GetFullPosition();
+							const vector3f distance = Sector::SIZE * vector3f(systemPath->sectorX, systemPath->sectorY, systemPath->sectorZ) - ss->GetFullPosition();
 							if (distance.LengthSqr() >= visibleRadiusSqr)
 								continue; // too far
 
@@ -531,10 +528,10 @@ namespace Background {
 		m_renderer->DrawBuffer(m_vertexBuffer.get(), rs, m_material.Get(), Graphics::TRIANGLE_STRIP);
 	}
 
-	Container::Container(Graphics::Renderer *renderer, Random &rand, const Space *space, RefCountedPtr<Galaxy> galaxy) :
+	Container::Container(Graphics::Renderer *renderer, Random &rand, const Space *space, RefCountedPtr<Galaxy> galaxy, const SystemPath *const systemPath /*= nullptr*/) :
 		m_renderer(renderer),
 		m_milkyWay(renderer),
-		m_starField(renderer, rand, space, galaxy),
+		m_starField(renderer, rand, space && space->GetStarSystem() ? &space->GetStarSystem()->GetPath() : systemPath, galaxy),
 		m_universeBox(renderer),
 		m_drawFlags(DRAW_SKYBOX | DRAW_STARS)
 	{

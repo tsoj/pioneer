@@ -650,6 +650,9 @@ void MainMenu::Update(float deltaTime)
 {
 	Pi::GetApp()->HandleEvents();
 
+	if (Pi::MustRefreshBackgroundClearFlag())
+		Pi::intro->RefreshBackground(Pi::renderer);
+
 	Pi::intro->Draw(deltaTime);
 
 	Pi::pigui->NewFrame();

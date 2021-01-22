@@ -4,6 +4,7 @@
 #ifndef _BACKGROUND_H
 #define _BACKGROUND_H
 
+#include "galaxy/SystemPath.h"
 #include "graphics/Drawables.h"
 
 class Random;
@@ -60,10 +61,10 @@ namespace Background {
 	class Starfield : public BackgroundElement {
 	public:
 		//does not Fill the starfield
-		Starfield(Graphics::Renderer *r, Random &rand, const Space *space, RefCountedPtr<Galaxy> galaxy);
+		Starfield(Graphics::Renderer *r, Random &rand, const SystemPath *const systemPath, RefCountedPtr<Galaxy> galaxy);
 		void Draw(Graphics::RenderState *);
 		//create or recreate the starfield
-		void Fill(Random &rand, const Space *space, RefCountedPtr<Galaxy> galaxy);
+		void Fill(Random &rand, const SystemPath *const systemPath, RefCountedPtr<Galaxy> galaxy);
 
 	private:
 		void Init();
@@ -95,7 +96,7 @@ namespace Background {
 			DRAW_SKYBOX = 1 << 2
 		};
 
-		Container(Graphics::Renderer *, Random &rand, const Space *space, RefCountedPtr<Galaxy> galaxy);
+		Container(Graphics::Renderer *, Random &rand, const Space *space, RefCountedPtr<Galaxy> galaxy, const SystemPath *const systemPath = nullptr);
 		void Draw(const matrix4x4d &transform);
 
 		void SetIntensity(float intensity);
