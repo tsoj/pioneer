@@ -258,17 +258,15 @@ namespace Background {
 		Uint32 num = 0;
 		if (systemPath && galaxy.Valid()) {
 
-			constexpr float starsPerSector = 2.0; /* experimentally determined (already ajusted for that we are
-			searching through a square of sectors and not a sphere)*/
-			// TODO: how robust is this value against changes in the underlying sector code?
-			const float approxNumSectors = NUM_BG_STARS / starsPerSector;
-			const Sint32 visibleRadius = std::min<Sint32>(BG_STAR_RADIUS_MAX, 0.98 * pow(3 * approxNumSectors * pow(Sector::SIZE, 3) / (4.0 * M_PI), 1.0 / 3.0));
-			// multiplying with 0.98 to make sure that we don't stop early because we exceeded the NUM_BG_STARS limit
+			/* the number of visible systems is in a cubic relationship with the visible radius,
+			i.e. visibleRadius = x * numberSystems^(1/3)
+			I experimentally determined that x is approximately 3.89
+			and that stays probably the same as long as the galaxy has the same system density */
+			const Sint32 visibleRadius = std::min<Sint32>(BG_STAR_RADIUS_MAX, 3.89 * pow((float)NUM_BG_STARS, 1.0 / 3.0));
 
 			const Sint32 visibleRadiusSqr = (visibleRadius * visibleRadius);
 			const Sint32 sectorMin = -(visibleRadius / Sector::SIZE); // lyrs_radius / sector_size_in_lyrs
 			const Sint32 sectorMax = visibleRadius / Sector::SIZE;	  // lyrs_radius / sector_size_in_lyrs
-
 			// fill star array
 			for (Sint32 x = sectorMin; x <= sectorMax; ++x)
 				for (Sint32 y = sectorMin; y <= sectorMax; ++y)
