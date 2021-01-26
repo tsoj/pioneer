@@ -464,7 +464,8 @@ void Game::SwitchToHyperspace()
 	m_space.reset(); // HACK: Here because next line will create Frames *before* deleting existing ones
 	m_space.reset(new Space(this, m_galaxy, m_space.get()));
 
-	m_space->GetBackground()->SetDrawFlags(Background::Container::DRAW_STARS);
+	m_space->GetBackground()->SetDrawFlags(Background::DRAW_SKYBOX | Background::DRAW_HYPERSPACE_STARS);
+	m_space->GetBackground()->SetSkybox("textures/skybox/hyperspace.dds");
 
 	// Reset planner
 	Pi::planner->ResetStartTime();
@@ -616,7 +617,7 @@ void Game::SwitchToNormalSpace()
 	}
 	m_hyperspaceClouds.clear();
 
-	m_space->GetBackground()->SetDrawFlags(Background::Container::DRAW_SKYBOX | Background::Container::DRAW_STARS);
+	m_space->GetBackground()->SetDrawFlags(Background::DRAW_SKYBOX | Background::DRAW_STAR_FIELD);
 
 	// HACK: we call RebuildObjectTrees to make the internal state of CollisionSpace valid
 	// This is absolutely not our job and CollisionSpace should be redesigned to fix this.

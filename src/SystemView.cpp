@@ -354,7 +354,7 @@ void SystemView::Draw3D()
 	background->SetIntensity(0.6);
 	if (!m_game->IsNormalSpace() || !m_game->GetSpace()->GetStarSystem()->GetPath().IsSameSystem(path)) {
 		Uint32 cachedFlags = background->GetDrawFlags();
-		background->SetDrawFlags(Background::Container::DRAW_SKYBOX);
+		background->SetDrawFlags(Background::DRAW_SKYBOX);
 		background->Draw(trans2bg);
 		background->SetDrawFlags(cachedFlags);
 	} else {

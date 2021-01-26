@@ -29,26 +29,7 @@ namespace {
 	constexpr Uint32 BG_STAR_MAX = 500000;
 	constexpr Uint32 BG_STAR_MIN = 1;
 	constexpr Sint32 BG_STAR_RADIUS_MAX = 500;
-	constexpr Uint32 NUM_HYPERSPACE_STARS = 8000;
-	static RefCountedPtr<Graphics::Texture> s_defaultCubeMap;
-
-	static Uint32 GetNumSkyboxes()
-	{
-		char filename[1024];
-		snprintf(filename, sizeof(filename), "textures/skybox");
-		std::vector<FileSystem::FileInfo> fileList;
-		FileSystem::gameDataFiles.ReadDirectory(filename, fileList);
-
-		const char *itemMask = "ub";
-
-		Uint32 num_matching = 0;
-		for (std::vector<FileSystem::FileInfo>::const_iterator it = fileList.begin(), itEnd = fileList.end(); it != itEnd; ++it) {
-			if (starts_with((*it).GetName(), itemMask)) {
-				++num_matching;
-			}
-		}
-		return num_matching;
-	}
+	constexpr Uint32 NUM_HYPERSPACE_STARS = 6000;
 } // namespace
 
 namespace Background {
@@ -87,12 +68,6 @@ namespace Background {
 
 	void UniverseBox::Init()
 	{
-		// Load default cubemap
-		if (!s_defaultCubeMap.Valid()) {
-			TextureBuilder texture_builder = TextureBuilder::Cube("textures/skybox/skyboxNoStars.dds");
-			s_defaultCubeMap.Reset(texture_builder.GetOrCreateTexture(m_renderer, std::string("cube")));
-		}
-
 		// Create skybox geometry
 		std::unique_ptr<Graphics::VertexArray> box(new VertexArray(ATTRIB_POSITION | ATTRIB_UV0, 36));
 		const float vp = 1000.0f;
@@ -165,7 +140,7 @@ namespace Background {
 
 		SetIntensity(1.0f);
 
-		m_numCubemaps = GetNumSkyboxes();
+		SetCubeMap("textures/skybox/skyboxNoStars.dds");
 	}
 
 	void UniverseBox::Draw(Graphics::RenderState *rs)
@@ -174,22 +149,12 @@ namespace Background {
 			m_renderer->DrawBuffer(m_vertexBuffer.get(), rs, m_material.Get());
 	}
 
-	void UniverseBox::LoadCubeMap(Random &rand)
+	void UniverseBox::SetCubeMap(const std::string& filePath)
 	{
-		if (m_numCubemaps > 0) {
-			const int new_ubox_index = rand.Int32(1, m_numCubemaps);
-			if (new_ubox_index > 0) {
-				// Load new one
-				const std::string os = stringf("textures/skybox/ub%0{d}.dds", (new_ubox_index - 1));
-				TextureBuilder texture_builder = TextureBuilder::Cube(os.c_str());
-				m_cubemap.Reset(texture_builder.GetOrCreateTexture(m_renderer, std::string("cube")));
-				m_material->texture0 = m_cubemap.Get();
-			}
-		} else {
-			// use default cubemap
-			m_cubemap.Reset();
-			m_material->texture0 = s_defaultCubeMap.Get();
-		}
+		m_cubemap.Reset();
+		TextureBuilder textureBuilder = TextureBuilder::Cube(filePath);
+		m_cubemap.Reset(textureBuilder.GetOrCreateTexture(m_renderer, std::string("cube")));
+		m_material->texture0 = m_cubemap.Get();
 	}
 
 	Starfield::Starfield(Graphics::Renderer *renderer, Random &rand, const SystemPath *const systemPath, RefCountedPtr<Galaxy> galaxy)
@@ -276,7 +241,7 @@ namespace Background {
 							continue; // early out
 
 						// this is fairly expensive
-						RefCountedPtr<const Sector> sec = galaxy->GetSector(sys);
+						const RefCountedPtr<const Sector> sec = galaxy->GetSector(sys);
 
 						// add as many systems as we can
 						const size_t numSystems = std::min(sec->m_systems.size(), (size_t)(NUM_BG_STARS - num));
@@ -407,12 +372,13 @@ namespace Background {
 		m_renderState = m_renderer->CreateRenderState(rsd);
 	}
 
-	void Starfield::Draw(Graphics::RenderState *rs)
+	void Starfield::Draw(Graphics::RenderState *rs, const Uint32 flags)
 	{
 		// XXX would be nice to get rid of the Pi:: stuff here
-		if (!Pi::game || Pi::player->GetFlightState() != Ship::HYPERSPACE) {
+		if (flags & DRAW_STAR_FIELD) {
 			m_pointSprites->Draw(m_renderer, m_renderState);
-		} else {
+		}
+		if (flags & DRAW_HYPERSPACE_STARS) {
 
 			assert(sizeof(StarVert) == 16);
 			assert(m_animBuffer->GetDesc().stride == sizeof(StarVert));
@@ -443,101 +409,16 @@ namespace Background {
 		}
 	}
 
-	MilkyWay::MilkyWay(Graphics::Renderer *renderer)
-	{
-		m_renderer = renderer;
-
-		//build milky way model in two strips (about 256 verts)
-		std::unique_ptr<Graphics::VertexArray> bottom(new VertexArray(ATTRIB_POSITION | ATTRIB_DIFFUSE));
-		std::unique_ptr<Graphics::VertexArray> top(new VertexArray(ATTRIB_POSITION | ATTRIB_DIFFUSE));
-
-		const Color dark(Color::BLANK);
-		const Color bright(13, 13, 13, 13);
-
-		//bottom
-		float theta;
-		for (theta = 0.0; theta < 2.f * float(M_PI); theta += 0.1f) {
-			bottom->Add(
-				vector3f(100.0f * sin(theta), float(-40.0 - 30.0 * noise(vector3d(sin(theta), 1.0, cos(theta)))), 100.0f * cos(theta)),
-				dark);
-			bottom->Add(
-				vector3f(100.0f * sin(theta), float(5.0 * noise(vector3d(sin(theta), 0.0, cos(theta)))), 100.0f * cos(theta)),
-				bright);
-		}
-		theta = 2.f * float(M_PI);
-		bottom->Add(
-			vector3f(100.0f * sin(theta), float(-40.0 - 30.0 * noise(vector3d(sin(theta), 1.0, cos(theta)))), 100.0f * cos(theta)),
-			dark);
-		bottom->Add(
-			vector3f(100.0f * sin(theta), float(5.0 * noise(vector3d(sin(theta), 0.0, cos(theta)))), 100.0f * cos(theta)),
-			bright);
-		//top
-		for (theta = 0; theta < 2.f * float(M_PI); theta += 0.1f) {
-			top->Add(
-				vector3f(100.0f * sin(theta), float(5.0 * noise(vector3d(sin(theta), 0.0, cos(theta)))), 100.0f * cos(theta)),
-				bright);
-			top->Add(
-				vector3f(100.0f * sin(theta), float(40.0 + 30.0 * noise(vector3d(sin(theta), -1.0, cos(theta)))), 100.0f * cos(theta)),
-				dark);
-		}
-		theta = 2.f * float(M_PI);
-		top->Add(
-			vector3f(100.0f * sin(theta), float(5.0 * noise(vector3d(sin(theta), 0.0, cos(theta)))), 100.0f * cos(theta)),
-			bright);
-		top->Add(
-			vector3f(100.0f * sin(theta), float(40.0 + 30.0 * noise(vector3d(sin(theta), -1.0, cos(theta)))), 100.0f * cos(theta)),
-			dark);
-
-		Graphics::MaterialDescriptor desc;
-		desc.effect = Graphics::EFFECT_STARFIELD;
-		desc.vertexColors = true;
-		m_material.Reset(m_renderer->CreateMaterial(desc));
-		m_material->emissive = Color::WHITE;
-
-		Graphics::VertexBufferDesc vbd;
-		vbd.attrib[0].semantic = Graphics::ATTRIB_POSITION;
-		vbd.attrib[0].format = Graphics::ATTRIB_FORMAT_FLOAT3;
-		vbd.attrib[1].semantic = Graphics::ATTRIB_DIFFUSE;
-		vbd.attrib[1].format = Graphics::ATTRIB_FORMAT_UBYTE4;
-		vbd.numVertices = bottom->GetNumVerts() + top->GetNumVerts();
-		vbd.usage = Graphics::BUFFER_USAGE_STATIC;
-
-		//two strips in one buffer, but seems to work ok without degenerate triangles
-		m_vertexBuffer.reset(renderer->CreateVertexBuffer(vbd));
-		assert(m_vertexBuffer->GetDesc().stride == sizeof(MilkyWayVert));
-		auto vtxPtr = m_vertexBuffer->Map<MilkyWayVert>(Graphics::BUFFER_MAP_WRITE);
-		for (Uint32 i = 0; i < top->GetNumVerts(); i++) {
-			vtxPtr->pos = top->position[i];
-			vtxPtr->col = top->diffuse[i];
-			vtxPtr++;
-		}
-		for (Uint32 i = 0; i < bottom->GetNumVerts(); i++) {
-			vtxPtr->pos = bottom->position[i];
-			vtxPtr->col = bottom->diffuse[i];
-			vtxPtr++;
-		}
-		m_vertexBuffer->Unmap();
-	}
-
-	void MilkyWay::Draw(Graphics::RenderState *rs)
-	{
-		assert(m_vertexBuffer);
-		assert(m_material);
-		m_renderer->DrawBuffer(m_vertexBuffer.get(), rs, m_material.Get(), Graphics::TRIANGLE_STRIP);
-	}
-
 	Container::Container(Graphics::Renderer *renderer, Random &rand, const Space *space, RefCountedPtr<Galaxy> galaxy, const SystemPath *const systemPath /*= nullptr*/) :
 		m_renderer(renderer),
-		m_milkyWay(renderer),
 		m_starField(renderer, rand, space && space->GetStarSystem() ? &space->GetStarSystem()->GetPath() : systemPath, galaxy),
 		m_universeBox(renderer),
-		m_drawFlags(DRAW_SKYBOX | DRAW_STARS)
+		m_drawFlags(DRAW_SKYBOX | DRAW_STAR_FIELD)
 	{
 		Graphics::RenderStateDesc rsd;
 		rsd.depthTest = false;
 		rsd.depthWrite = false;
 		m_renderState = renderer->CreateRenderState(rsd);
-		m_universeBox.LoadCubeMap(rand);
 	}
 
 	void Container::Draw(const matrix4x4d &transform)
@@ -547,12 +428,9 @@ namespace Background {
 		if (DRAW_SKYBOX & m_drawFlags) {
 			m_universeBox.Draw(m_renderState);
 		}
-		if (DRAW_MILKY & m_drawFlags) {
-			m_milkyWay.Draw(m_renderState);
-		}
-		if (DRAW_STARS & m_drawFlags) {
+		if ((DRAW_HYPERSPACE_STARS | DRAW_STAR_FIELD) & m_drawFlags) {
 			m_renderer->SetTransform(matrix4x4f(transform));
-			m_starField.Draw(m_renderState);
+			m_starField.Draw(m_renderState, m_drawFlags);
 		}
 	}
 
@@ -562,7 +440,6 @@ namespace Background {
 		intensity = Clamp(intensity, 0.0f, 1.0f);
 		m_universeBox.SetIntensity(intensity);
 		m_starField.SetIntensity(intensity);
-		m_milkyWay.SetIntensity(intensity);
 	}
 
 	void Container::SetDrawFlags(const Uint32 flags)

@@ -24,6 +24,14 @@ namespace Graphics {
  */
 
 namespace Background {
+
+
+	enum BackgroundDrawFlags {
+		DRAW_STAR_FIELD = 1 << 0,
+		DRAW_HYPERSPACE_STARS = 1 << 1,
+		DRAW_SKYBOX = 1 << 2
+	};
+
 	class BackgroundElement {
 	public:
 		void SetIntensity(float intensity);
@@ -47,22 +55,20 @@ namespace Background {
 		~UniverseBox();
 
 		void Draw(Graphics::RenderState *);
-		void LoadCubeMap(Random &rand);
+		void SetCubeMap(const std::string& filePath);
 
 	private:
 		void Init();
 
 		std::unique_ptr<Graphics::VertexBuffer> m_vertexBuffer;
 		RefCountedPtr<Graphics::Texture> m_cubemap;
-
-		Uint32 m_numCubemaps;
 	};
 
 	class Starfield : public BackgroundElement {
 	public:
 		//does not Fill the starfield
-		Starfield(Graphics::Renderer *r, Random &rand, const SystemPath *const systemPath, RefCountedPtr<Galaxy> galaxy);
-		void Draw(Graphics::RenderState *);
+		Starfield(Graphics::Renderer *, Random &rand, const SystemPath *const systemPath, RefCountedPtr<Galaxy> galaxy);
+		void Draw(Graphics::RenderState *, const Uint32 flags);
 		//create or recreate the starfield
 		void Fill(Random &rand, const SystemPath *const systemPath, RefCountedPtr<Galaxy> galaxy);
 
@@ -78,23 +84,9 @@ namespace Background {
 		std::unique_ptr<Graphics::VertexBuffer> m_animBuffer;
 	};
 
-	class MilkyWay : public BackgroundElement {
-	public:
-		MilkyWay(Graphics::Renderer *);
-		void Draw(Graphics::RenderState *);
-
-	private:
-		std::unique_ptr<Graphics::VertexBuffer> m_vertexBuffer;
-	};
-
 	// contains starfield, milkyway, possibly other Background elements
 	class Container {
 	public:
-		enum BackgroundDrawFlags {
-			DRAW_STARS = 1 << 0,
-			DRAW_MILKY = 1 << 1,
-			DRAW_SKYBOX = 1 << 2
-		};
 
 		Container(Graphics::Renderer *, Random &rand, const Space *space, RefCountedPtr<Galaxy> galaxy, const SystemPath *const systemPath = nullptr);
 		void Draw(const matrix4x4d &transform);
@@ -102,10 +94,10 @@ namespace Background {
 		void SetIntensity(float intensity);
 		void SetDrawFlags(const Uint32 flags);
 		Uint32 GetDrawFlags() const { return m_drawFlags; }
+		void SetSkybox(const std::string& filePath) { m_universeBox.SetCubeMap(filePath); }
 
 	private:
 		Graphics::Renderer *m_renderer;
-		MilkyWay m_milkyWay;
 		Starfield m_starField;
 		UniverseBox m_universeBox;
 		Uint32 m_drawFlags;
